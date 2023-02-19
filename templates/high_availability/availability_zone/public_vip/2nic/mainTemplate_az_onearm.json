@@ -142,7 +142,7 @@
                 "description": "Subnet Mask for the above Server side subnet Address Prefix"
             }
         },
-        "restrictedSshAccessCIDR": {
+        "restrictedAccessCIDR": {
             "type": "string",
             "metadata": {
                 "description": "Who can access the management interface via SSH? Provide an address range using CIDR notation (e.g. 192.168.99.0/24 or 2001:1234::/64), or an IP address (e.g. 192.168.99.0 or 2001:1234::). You can also provide a comma-separated list of IP addresses or address ranges using either IPv4 or IPv6. "
@@ -184,7 +184,6 @@
         "vnetRg": "[if(equals(parameters('vnetResourceGroup'), ''), resourceGroup().name,parameters('vnetResourceGroup'))]",
         "snetRef-01": "[resourceId(variables('vnetRg'),'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('snetName-01'))]",
         "snetRef-11": "[resourceId(variables('vnetRg'),'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('snetName-11'))]",
-        "snetRef-12": "[resourceId(variables('vnetRg'),'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('snetName-12'))]",
         "bePoolId": "[resourceId( 'Microsoft.Network/loadBalancers/backendAddressPools', variables('lbN'), variables('bePoolN'))]",
         "probeId": "[resourceId( 'Microsoft.Network/loadBalancers/probes', variables('lbN'), variables('probeN'))]",
         "ipConfId": "[resourceId( 'Microsoft.Network/loadBalancers/frontendIpConfigurations', variables('lbN'), variables('ipConfN'))]"
@@ -283,7 +282,7 @@
                     "computerName": "[concat(variables('vmN'), copyIndex())]",
                     "adminUsername": "[parameters('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
-                    "customData": "[base64(concat(' \n<NS-PRE-BOOT-CONFIG> ', '\n<NS-CONFIG>', '\nset systemparameter -promptString %u@%s', '\nadd ha node 1 ', reference(concat(variables('nicN'), sub(1, copyIndex()),'-01')).ipConfigurations[0].properties.privateIPAddress, ' -inc ENABLED', '\nadd ns ip ', reference(concat(variables('nicN'), copyIndex(), '-11')).ipConfigurations[0].properties.privateIPAddress, ' ', parameters('subnetAddressMask-11'), ' -type SNIP', '\nadd ns ip ', reference(concat(variables('nicN'), copyIndex(), '-12')).ipConfigurations[0].properties.privateIPAddress, ' ', parameters('subnetAddressMask-12'), ' -type SNIP', '\nset ns rpcNode ', reference(concat(variables('nicN'), copyIndex(),'-01')).ipConfigurations[0].properties.privateIPAddress,' -password ', parameters('rpcNodePassword'), ' -secure YES', '\nset ns rpcNode ', reference(concat(variables('nicN'), sub(1, copyIndex()),'-01')).ipConfigurations[0].properties.privateIPAddress,' -password ', parameters('rpcNodePassword'), ' -secure YES', '\n</NS-CONFIG> ', '\n</NS-PRE-BOOT-CONFIG>'))]"
+                    "customData": "[base64(concat(' \n<NS-PRE-BOOT-CONFIG> ', '\n<NS-CONFIG>', '\nset systemparameter -promptString %u@%s', '\nadd ha node 1 ', reference(concat(variables('nicN'), sub(1, copyIndex()),'-01')).ipConfigurations[0].properties.privateIPAddress, ' -inc ENABLED', '\nadd ns ip ', reference(concat(variables('nicN'), copyIndex(), '-11')).ipConfigurations[0].properties.privateIPAddress, ' ', parameters('subnetAddressMask-11'), ' -type SNIP', '\nset ns rpcNode ', reference(concat(variables('nicN'), copyIndex(),'-01')).ipConfigurations[0].properties.privateIPAddress,' -password ', parameters('rpcNodePassword'), ' -secure YES', '\nset ns rpcNode ', reference(concat(variables('nicN'), sub(1, copyIndex()),'-01')).ipConfigurations[0].properties.privateIPAddress,' -password ', parameters('rpcNodePassword'), ' -secure YES', '\n</NS-CONFIG> ', '\n</NS-PRE-BOOT-CONFIG>'))]"
                 },
                 "hardwareProfile": {
                     "vmSize": "[parameters('vmSize')]"
@@ -316,12 +315,6 @@
                             "properties": {
                                 "primary": false
                             }
-                        },
-                        {
-                            "id": "[resourceId( 'Microsoft.Network/networkInterfaces', concat(variables('nicN'), copyIndex(), '-12'))]",
-                            "properties": {
-                                "primary": false
-                            }
                         }
                     ]
                 },
@@ -337,8 +330,6 @@
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicN'), sub(1,copyIndex()), '-01')]",
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicN'), copyIndex(), '-11')]",
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicN'), sub(1,copyIndex()), '-11')]",
-                "[concat('Microsoft.Network/networkInterfaces/', variables('nicN'), copyIndex(), '-12')]",
-                "[concat('Microsoft.Network/networkInterfaces/', variables('nicN'), sub(1,copyIndex()), '-12')]",
                 "[concat('Microsoft.Storage/storageAccounts/', variables('saN'))]"
             ]
         },
@@ -507,9 +498,22 @@
                         "name": "default-allow-ssh",
                         "properties": {
                             "priority": 1000,
-                            "sourceAddressPrefix": "[parameters('restrictedSSHaccessCIDR')]",
+                            "sourceAddressPrefix": "[parameters('restrictedAccessCIDR')]",
                             "protocol": "TCP",
                             "destinationPortRange": "22",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*"
+                        }
+                    },
+                    {
+                        "name": "default-allow-https-trusted",
+                        "properties": {
+                            "priority": 1002,
+                            "sourceAddressPrefix": "[parameters('restrictedAccessCIDR')]",
+                            "protocol": "TCP",
+                            "destinationPortRange": "443",
                             "access": "Allow",
                             "direction": "Inbound",
                             "sourcePortRange": "*",
